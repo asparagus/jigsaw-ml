@@ -56,20 +56,31 @@ class LossFunction(Piece):
 
 
 class WrappedLoss(LossFunction):
+    """Class wrapping a callable loss function for ease of use."""
+
     def __init__(
             self,
             loss_fn: Callable,
-            *args,
             input_name: str,
             target_name: str,
             name: Optional[str] = None,
             **kwargs,
         ):
+        """Initializes the wrapped loss.
+
+        Args:
+            loss_fn: The function to compute the loss.
+                Must be callable like loss_fn(input, target, *args, **kwargs)
+            input_name: The name of the tensor to pass as input to the loss
+            target_name: The name of the tensor to pass as target to the loss
+            name: Optional name to be given to this function.
+                If missing will use the function's name
+            **kwargs: Extra keyword-arguments to pass to loss_fn.
+        """
         super().__init__(name=name or loss_fn.__name__)
         self.wrapped_loss_fn = loss_fn
         self.input_name = input_name
         self.target_name = target_name
-        self.args = args
         self.kwargs = kwargs
 
     def inputs(self) -> Tuple[str]:
@@ -84,7 +95,7 @@ class WrappedLoss(LossFunction):
         """Computes the loss."""
         inpt = inputs[self.input_name]
         trgt = inputs[self.target_name]
-        loss_value = self.wrapped_loss_fn(inpt, trgt, *self.args, **self.kwargs)
+        loss_value = self.wrapped_loss_fn(inpt, trgt, **self.kwargs)
         output = {
             self.name: loss_value
         }
