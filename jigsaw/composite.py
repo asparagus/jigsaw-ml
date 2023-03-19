@@ -31,8 +31,8 @@ class Composite(piece.Piece):
         dependency_graph = Composite.build_dependency_graph(components)
         sorted_indices = graph_utils.topological_sort(dependency_graph)
         self._components = tuple(components[i] for i in sorted_indices)
-        self._inputs = {i for piece in self._components for i in piece.inputs}
-        self._outputs = {o for piece in self._components for o in piece.outputs}
+        self._inputs = {i for piece in self._components for i in piece.inputs()}
+        self._outputs = {o for piece in self._components for o in piece.outputs()}
         self.name = name or self.__class__.__qualname__
 
     def inputs(self) -> Tuple[str]:
