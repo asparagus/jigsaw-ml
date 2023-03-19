@@ -54,47 +54,41 @@ class LossFunction(Piece):
         """
         self.name = name or self.__class__.__qualname__
 
-    @classmethod
-    def wrap_loss(cls, loss_fn: Callable, input_name: str, target_name: str):
-        """Wraps a callable loss function into its own LossFunction class.
 
-        Args:
-            loss_fn: The function to compute the loss.
-                Must be callable like loss_fn(input, target, *args, **kwargs)
-            input_name: The name of the tensor to pass as input to the loss
-            target_name: The name of the tensor to pass as target to the loss
+class WrappedLoss(LossFunction):
+    def __init__(
+            self,
+            loss_fn: Callable,
+            *args,
+            input_name: str,
+            target_name: str,
+            name: Optional[str] = None,
+            **kwargs,
+        ):
+        super().__init__(name=name or loss_fn.__name__)
+        self.wrapped_loss_fn = loss_fn
+        self.input_name = input_name
+        self.target_name = target_name
+        self.args = args
+        self.kwargs = kwargs
 
-        Returns:
-            A class wrapping the loss. Note that an instance should be created.
-        """
-        class WrappedLoss(LossFunction):
-            def __init__(self, *args, name=loss_fn.__name__, **kwargs):
-                super().__init__(name=name)
-                self.wrapped_loss_fn = loss_fn
-                self.input_name = input_name
-                self.target_name = target_name
-                self.args = args
-                self.kwargs = kwargs
+    def inputs(self) -> Tuple[str]:
+        """Gets the name of the input which is just the output."""
+        return tuple([self.input_name])
 
-            def inputs(self) -> Tuple[str]:
-                """Gets the name of the input which is just the output."""
-                return tuple([self.input_name])
+    def outputs(self) -> Tuple[str]:
+        """Gets the names of the outputs produced by this piece."""
+        return tuple([self.name])
 
-            def outputs(self) -> Tuple[str]:
-                """Gets the names of the outputs produced by this piece."""
-                return tuple([self.name])
-
-            def compute(self, inputs: Dict[str, "torch.Tensor"]) -> Dict[str, "torch.Tensor"]:
-                """Computes the loss."""
-                inpt = inputs[self.input_name]
-                trgt = inputs[self.target_name]
-                loss_value = self.wrapped_loss_fn(inpt, trgt, *self.args, **self.kwargs)
-                output = {
-                    self.name: loss_value
-                }
-                return output
-
-        return WrappedLoss
+    def compute(self, inputs: Dict[str, "torch.Tensor"]) -> Dict[str, "torch.Tensor"]:
+        """Computes the loss."""
+        inpt = inputs[self.input_name]
+        trgt = inputs[self.target_name]
+        loss_value = self.wrapped_loss_fn(inpt, trgt, *self.args, **self.kwargs)
+        output = {
+            self.name: loss_value
+        }
+        return output
 
 
 class Module(Piece):
