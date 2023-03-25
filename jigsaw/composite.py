@@ -6,7 +6,7 @@ from jigsaw import graph_utils
 from jigsaw import piece
 
 
-T = TypeVar("T", piece.Piece)
+T = TypeVar("T", bound=piece.Piece)
 
 
 class Composite(piece.Piece):
