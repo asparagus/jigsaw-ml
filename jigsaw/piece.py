@@ -14,12 +14,12 @@ class Piece(abc.ABC):
     """
 
     @abc.abstractmethod
-    def inputs(self) -> Tuple[str]:
+    def inputs(self) -> Tuple[str, ...]:
         """Gets the names of the inputs required by this piece."""
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def outputs(self) -> Tuple[str]:
+    def outputs(self) -> Tuple[str, ...]:
         """Gets the names of the outputs produced by this piece."""
         raise NotImplementedError()
 
@@ -83,11 +83,11 @@ class WrappedLoss(LossFunction):
         self.target_name = target_name
         self.kwargs = kwargs
 
-    def inputs(self) -> Tuple[str]:
+    def inputs(self) -> Tuple[str, ...]:
         """Gets the name of the input which is just the output."""
         return tuple([self.input_name])
 
-    def outputs(self) -> Tuple[str]:
+    def outputs(self) -> Tuple[str, ...]:
         """Gets the names of the outputs produced by this piece."""
         return tuple([self.name])
 

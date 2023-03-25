@@ -2,7 +2,7 @@
 from typing import Dict, Set, Tuple
 
 
-def topological_sort(dependency_graph: Dict[int, Set[int]]) -> Tuple[int]:
+def topological_sort(dependency_graph: Dict[int, Set[int]]) -> Tuple[int, ...]:
     """Compute the topological sorting of the given dependency graph.
 
     Args:

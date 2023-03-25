@@ -35,11 +35,11 @@ class Composite(piece.Piece):
         self._outputs = {o for piece in self._components for o in piece.outputs()}
         self.name = name or self.__class__.__qualname__
 
-    def inputs(self) -> Tuple[str]:
+    def inputs(self) -> Tuple[str, ...]:
         """Gets the names of the inputs required by this composite."""
         return self._inputs
 
-    def outputs(self) -> Tuple[str]:
+    def outputs(self) -> Tuple[str, ...]:
         """Gets the names of the outputs produced by this composite."""
         return self._outputs
 
