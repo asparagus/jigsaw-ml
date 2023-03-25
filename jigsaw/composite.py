@@ -1,9 +1,12 @@
 """Module containing the Composite class which stitches together Pieces."""
-from typing import Dict, Optional, Sequence, Set, Tuple
+from typing import Dict, List, Optional, Sequence, Set, Tuple, Type, TypeVar
 import collections
 
 from jigsaw import graph_utils
 from jigsaw import piece
+
+
+T = TypeVar("T", piece.Piece)
 
 
 class Composite(piece.Piece):
@@ -62,6 +65,24 @@ class Composite(piece.Piece):
             cumulative_inputs.update(piece_outputs)
             outputs.update(piece_outputs)
         return outputs
+
+    def extract(self, component_type: Type[T]) -> List[T]:
+        """Extract components that match a given type.
+
+        Args:
+            component_type: Type of component to extract deriving from piece.Piece
+
+        Returns:
+            A list of the components of this type.
+        """
+        matching_components = []
+        for component in self._components:
+            if isinstance(component, component_type):
+                matching_components.append(component)
+            elif isinstance(component, Composite):
+                matching_components.extend(
+                    component.extract(component_type))
+        return matching_components
 
     @classmethod
     def assert_non_conflicting_outputs(cls, components: Sequence[piece.Piece]):
