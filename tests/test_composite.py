@@ -17,7 +17,7 @@ class DummyModule(piece.Module):
     def outputs(self) -> Tuple[str]:
         return self._outputs
 
-    def compute(self, inputs: Dict[str, "torch.Tensor"]) -> Dict[str, "torch.Tensor"]:
+    def forward(self, inputs: Dict[str, "torch.Tensor"]) -> Dict[str, "torch.Tensor"]:
         return {}
 
 

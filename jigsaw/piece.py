@@ -3,8 +3,10 @@ from typing import Callable, Dict, Optional, Tuple
 
 import abc
 
+from torch import nn
 
-class Piece(abc.ABC):
+
+class Piece(nn.Module, abc.ABC):
     """Piece is the core class of Jigsaw.
 
     A piece declares its inputs, outputs and the corresponding compute function.
@@ -24,7 +26,7 @@ class Piece(abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def compute(self, inputs: Dict[str, "torch.Tensor"]) -> Dict[str, "torch.Tensor"]:
+    def forward(self, inputs: Dict[str, "torch.Tensor"]) -> Dict[str, "torch.Tensor"]:
         """Performs the computation.
 
         Args:
@@ -52,6 +54,7 @@ class LossFunction(Piece):
                 Optional name given to this loss.
                 If missing will use the class name.
         """
+        super().__init__()
         self.name = name or self.__class__.__qualname__
 
 
@@ -91,7 +94,7 @@ class WrappedLoss(LossFunction):
         """Gets the names of the outputs produced by this piece."""
         return tuple([self.name])
 
-    def compute(self, inputs: Dict[str, "torch.Tensor"]) -> Dict[str, "torch.Tensor"]:
+    def forward(self, inputs: Dict[str, "torch.Tensor"]) -> Dict[str, "torch.Tensor"]:
         """Computes the loss."""
         inpt = inputs[self.input_name]
         trgt = inputs[self.target_name]
@@ -113,4 +116,5 @@ class Module(Piece):
                 Optional name given to this module.
                 If missing will use the class name.
         """
+        super().__init__()
         self.name = name or self.__class__.__qualname__

@@ -5,6 +5,8 @@ import collections
 from jigsaw import graph_utils
 from jigsaw import piece
 
+from torch import nn
+
 
 T = TypeVar("T", bound=piece.Piece)
 
@@ -31,9 +33,10 @@ class Composite(piece.Piece):
             name: Optional name to use for this instance.
                 If missing will use the class name.
         """
+        super().__init__()
         dependency_graph = Composite.build_dependency_graph(components)
         sorted_indices = graph_utils.topological_sort(dependency_graph)
-        self._components = tuple(components[i] for i in sorted_indices)
+        self._components = nn.ModuleList(modules=[components[i] for i in sorted_indices])
         self._inputs = {i for piece in self._components for i in piece.inputs()}
         self._outputs = {o for piece in self._components for o in piece.outputs()}
         self.name = name or self.__class__.__qualname__
@@ -46,7 +49,7 @@ class Composite(piece.Piece):
         """Gets the names of the outputs produced by this composite."""
         return self._outputs
 
-    def compute(self, inputs: Dict[str, "torch.Tensor"]) -> Dict[str, "torch.Tensor"]:
+    def forward(self, inputs: Dict[str, "torch.Tensor"]) -> Dict[str, "torch.Tensor"]:
         """Performs the computation.
 
         Components are pre-sorted in topological order such that the outputs of
@@ -128,6 +131,7 @@ class Composite(piece.Piece):
             o: i
             for i, piece in enumerate(components)
             for o in piece.outputs()
+            if o not in inputs_by_piece[i]
         }
         dependency_graph = dict()
         for i, inputs in inputs_by_piece.items():
