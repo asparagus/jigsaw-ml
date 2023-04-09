@@ -3,6 +3,7 @@ from typing import Callable, Dict, Optional, Tuple
 
 import abc
 
+import torch
 from torch import nn
 
 
@@ -26,7 +27,7 @@ class Piece(nn.Module, abc.ABC):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def forward(self, inputs: Dict[str, "torch.Tensor"]) -> Dict[str, "torch.Tensor"]:
+    def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Performs the computation.
 
         Args:
@@ -37,7 +38,7 @@ class Piece(nn.Module, abc.ABC):
         """
         raise NotImplementedError()
 
-    # def validate_inputs(self, inputs: Dict[str, "torch.Tensor"]):
+    # def validate_inputs(self, inputs: Dict[str, torch.Tensor]):
     #     """Validates that the required inputs are available."""
     #     missing_inputs = set(self.inputs()).difference(inputs.keys())
     #     assert not missing_inputs, f"Missing required inputs {missing_inputs}"
@@ -94,7 +95,7 @@ class WrappedLoss(LossFunction):
         """Gets the names of the outputs produced by this piece."""
         return tuple([self.name])
 
-    def forward(self, inputs: Dict[str, "torch.Tensor"]) -> Dict[str, "torch.Tensor"]:
+    def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Computes the loss."""
         inpt = inputs[self.input_name]
         trgt = inputs[self.target_name]

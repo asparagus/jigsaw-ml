@@ -5,6 +5,7 @@ import collections
 from jigsaw import graph_utils
 from jigsaw import piece
 
+import torch
 from torch import nn
 
 
@@ -37,8 +38,8 @@ class Composite(piece.Piece):
         dependency_graph = Composite.build_dependency_graph(components)
         sorted_indices = graph_utils.topological_sort(dependency_graph)
         self._components = nn.ModuleList(modules=[components[i] for i in sorted_indices])
-        self._inputs = {i for piece in self._components for i in piece.inputs()}
-        self._outputs = {o for piece in self._components for o in piece.outputs()}
+        self._inputs = tuple([i for piece in self._components for i in piece.inputs()])
+        self._outputs = tuple([o for piece in self._components for o in piece.outputs()])
         self.name = name or self.__class__.__qualname__
 
     def inputs(self) -> Tuple[str, ...]:
@@ -49,7 +50,7 @@ class Composite(piece.Piece):
         """Gets the names of the outputs produced by this composite."""
         return self._outputs
 
-    def forward(self, inputs: Dict[str, "torch.Tensor"]) -> Dict[str, "torch.Tensor"]:
+    def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         """Performs the computation.
 
         Components are pre-sorted in topological order such that the outputs of
@@ -64,7 +65,7 @@ class Composite(piece.Piece):
         cumulative_inputs = dict(inputs)
         outputs = dict()
         for piece in self._components:
-            piece_outputs = piece.compute(cumulative_inputs)
+            piece_outputs = piece(cumulative_inputs)
             cumulative_inputs.update(piece_outputs)
             outputs.update(piece_outputs)
         return outputs
