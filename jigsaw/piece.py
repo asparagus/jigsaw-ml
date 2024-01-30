@@ -15,6 +15,9 @@ class Piece(nn.Module, abc.ABC):
     A piece should not be too complex by itself, but grows in complexity as
     it's put together with other pieces.
     """
+    def __init__(self):
+        """Initializes the underlying nn.Module."""
+        super().__init__()
 
     @abc.abstractmethod
     def inputs(self) -> Tuple[str, ...]:

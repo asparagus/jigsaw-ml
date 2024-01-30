@@ -8,6 +8,7 @@ from jigsaw import composite
 
 class DummyModule(piece.Module):
     def __init__(self, inputs: Tuple[str], outputs: Tuple[str]):
+        super().__init__()
         self._inputs = inputs
         self._outputs = outputs
 
@@ -21,45 +22,32 @@ class DummyModule(piece.Module):
         return {}
 
 
-def test_build_dependency_graph():
-    KEY_INPUT = "input"
-    KEY_EXTRA_INPUT = "extra_input"
-    KEY_PREPROCESSED = "preprocessed"
-    KEY_OUTPUT = "output"
-    KEY_AUXILIARY_OUTPUT = "aux"
+def test_composite_init():
     preprocessor_module = DummyModule(
-        inputs=tuple([KEY_INPUT, KEY_EXTRA_INPUT]),
-        outputs=tuple([KEY_PREPROCESSED]),
+        inputs=tuple(["input", "extra_input"]),
+        outputs=tuple(["preprocessed"]),
     )
     main_module = DummyModule(
-        inputs=tuple([KEY_PREPROCESSED]),
-        outputs=tuple([KEY_OUTPUT]),
+        inputs=tuple(["preprocessed"]),
+        outputs=tuple(["output"]),
     )
     auxiliary_module = DummyModule(
-        inputs=tuple([KEY_PREPROCESSED]),
-        outputs=tuple([KEY_AUXILIARY_OUTPUT]),
+        inputs=tuple(["preprocessed"]),
+        outputs=tuple(["aux"]),
     )
     pieces = [preprocessor_module, main_module, auxiliary_module]
-    dependency_graph = composite.Composite.build_dependency_graph(pieces)
-    expected = {
-        0: set(),
-        1: {0},
-        2: {0},
-    }
-    assert dependency_graph == expected
+    composite.Composite(components=pieces)
 
 
-def test_build_dependency_graph_with_conflicting_outputs():
-    KEY_INPUT = "input"
-    KEY_OUTPUT = "output"
+def test_composite_fails_with_repeated_outputs():
     main_module = DummyModule(
-        inputs=tuple([KEY_INPUT]),
-        outputs=tuple([KEY_OUTPUT]),
+        inputs=tuple(["input"]),
+        outputs=tuple(["output"]),
     )
     alternative_module = DummyModule(
-        inputs=tuple([KEY_INPUT]),
-        outputs=tuple([KEY_OUTPUT]),
+        inputs=tuple(["input"]),
+        outputs=tuple(["output"]),
     )
     pieces = [main_module, alternative_module]
-    with pytest.raises(AssertionError):
-        composite.Composite.build_dependency_graph(pieces)
+    with pytest.raises(composite.OutputRedefinitionError):
+        composite.Composite(components=pieces)

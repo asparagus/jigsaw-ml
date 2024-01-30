@@ -1,8 +1,7 @@
 """Module containing the Composite class which stitches together Pieces."""
 from typing import Dict, List, Optional, Sequence, Set, Tuple, Type, TypeVar
-import collections
 
-from jigsaw import graph_utils
+from jigsaw import computation_graph
 from jigsaw import piece
 
 import torch
@@ -10,6 +9,35 @@ from torch import nn
 
 
 T = TypeVar("T", bound=piece.Piece)
+
+
+class GraphDefinitionError(Exception):
+    def __init__(self, msg: str):
+        super().__init__(msg)
+
+
+class OutputRedefinitionError(GraphDefinitionError):
+    def __init__(self, composite_name: str, names: List[str], indices: List[int], redefined_output: str):
+        super().__init__(
+            f"Multiple components within {composite_name} "
+            f"redefine the same output ({redefined_output}): "
+            f"{names} at indices {indices}"
+        )
+        self.composite_name = composite_name
+        self.names = names
+        self.indices = indices
+        self.redefined_output = redefined_output
+
+
+class CyclicDependencyError(GraphDefinitionError):
+    def __init__(self, composite_name: str, names: List[str], indices: List[int]):
+        super().__init__(
+            f"Cyclic dependency between components within {composite_name} :"
+            f"{names} at indices {indices}"
+        )
+        self.composite_name = composite_name
+        self.names = names
+        self.indices = indices
 
 
 class Composite(piece.Piece):
@@ -35,12 +63,19 @@ class Composite(piece.Piece):
                 If missing will use the class name.
         """
         super().__init__()
-        dependency_graph = Composite.build_dependency_graph(components)
-        sorted_indices = graph_utils.topological_sort(dependency_graph)
+        self.name = name or self.__class__.__qualname__
+        dependency_graph = self.try_build_dependency_graph(
+            composite_name=self.name,
+            components=components,
+        )
+        sorted_indices = self.try_topological_sort(
+            composite_name=self.name,
+            components=components,
+            dependency_graph=dependency_graph,
+        )
         self._components = nn.ModuleList(modules=[components[i] for i in sorted_indices])
         self._inputs = tuple([i for piece in self._components for i in piece.inputs()])
         self._outputs = tuple([o for piece in self._components for o in piece.outputs()])
-        self.name = name or self.__class__.__qualname__
 
     def inputs(self) -> Tuple[str, ...]:
         """Gets the names of the inputs required by this composite."""
@@ -89,56 +124,34 @@ class Composite(piece.Piece):
         return matching_components
 
     @classmethod
-    def assert_non_conflicting_outputs(cls, components: Sequence[piece.Piece]):
-        """Verifies that no two components have the same outputs.
-
-        Args:
-            components: Collection of pieces to verify.
-
-        Raises:
-            AssertionError if multiple components have outputs sharing the same name.
-        """
-        all_outputs = [out for piece in components for out in piece.outputs()]
-        counts = collections.Counter(all_outputs)
-        repeated_outputs = (out for out, count in counts.items() if count > 1)
-        assert not any(repeated_outputs), (
-            "There are conflicting outputs from multiple components: {}".format(
-                repeated_outputs
+    def try_build_dependency_graph(
+            cls,
+            composite_name: str,
+            components: Sequence[piece.Piece],
+        ):
+        component_ios = [(c.inputs(), c.outputs()) for c in components]
+        try:
+            return computation_graph.build_dependency_graph(component_ios)
+        except computation_graph.OutputRedefinitionError as error:
+            raise OutputRedefinitionError(
+                composite_name=composite_name,
+                names=[str(components[idx]) for idx in error.indices],
+                indices=list(error.indices),
+                redefined_output=error.redefined_output,
             )
-        )
 
     @classmethod
-    def build_dependency_graph(
+    def try_topological_sort(
             cls,
-            components: Sequence[piece.Piece]
-        ) -> Dict[int, Set[int]]:
-        """Builds a dependency graph between the given components.
-
-        Dependency graph is constructed based on the inputs / outputs that
-        the components themselves declare.
-
-        Args:
-            components: Collection of pieces to build the graph for.
-
-        Returns:
-            A dictionary containing the dependencies for each component.
-        """
-        cls.assert_non_conflicting_outputs(components)
-        inputs_by_piece = {
-            i: set(piece.inputs())
-            for i, piece in enumerate(components)
-        }
-        output_mapping = {
-            o: i
-            for i, piece in enumerate(components)
-            for o in piece.outputs()
-            if o not in inputs_by_piece[i]
-        }
-        dependency_graph = dict()
-        for i, inputs in inputs_by_piece.items():
-            dependency_graph[i] = set(
-                output_mapping[i]
-                for i in inputs
-                if i in output_mapping
+            composite_name: str,
+            components: Sequence[piece.Piece],
+            dependency_graph: Dict[int, Set[int]],
+        ) -> Tuple[int, ...]:
+        try:
+            return computation_graph.topological_sort(dependency_graph)
+        except computation_graph.CyclicDependencyError as error:
+            raise CyclicDependencyError(
+                composite_name=composite_name,
+                names=[str(components[idx]) for idx in error.indices],
+                indices=list(error.indices),
             )
-        return dependency_graph
