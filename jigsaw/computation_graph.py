@@ -1,5 +1,5 @@
 """Module containing utility functions related to graphs."""
-from typing import Dict, Sequence, Set, Tuple
+from typing import Dict, List, Sequence, Set, Tuple
 import collections
 
 
@@ -38,7 +38,7 @@ def build_dependency_graph(inputs_and_outputs: Sequence[IOSpec]) -> Dict[int, Se
     Returns:
         A dictionary containing the dependencies for each component.
     """
-    producers = {}
+    producers: Dict[str, int] = {}
     consumers = collections.defaultdict(list)
     for component_idx, (inputs, outputs) in enumerate(inputs_and_outputs):
         for output_name in outputs:
@@ -48,7 +48,10 @@ def build_dependency_graph(inputs_and_outputs: Sequence[IOSpec]) -> Dict[int, Se
         for input_name in inputs:
             consumers[input_name].append(component_idx)
 
-    dependency_graph = {idx: set() for idx, _ in enumerate(inputs_and_outputs)}
+    dependency_graph: Dict[int, Set[int]] = {
+        idx: set()
+        for idx, _ in enumerate(inputs_and_outputs)
+    }
     for input_name, input_consumers in consumers.items():
         producer = producers.get(input_name)
         if producer is not None:
@@ -69,7 +72,7 @@ def topological_sort(dependency_graph: Dict[int, Set[int]]) -> Tuple[int, ...]:
     Returns:
         A tuple containing the indices that can be used to sort the graph.
     """
-    sorting = list()
+    sorting: List[int] = list()
     resolved = [False] * len(dependency_graph)
     while len(sorting) < len(dependency_graph):
         initial_length = len(sorting)
