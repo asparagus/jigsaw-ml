@@ -2,13 +2,13 @@
 from typing import Dict, List, Optional, Sequence, Set, Tuple, Type, TypeVar
 
 from jigsaw import computation_graph
-from jigsaw import piece
+from jigsaw import Piece
 
 import torch
 from torch import nn
 
 
-T = TypeVar("T", bound=piece.Piece)
+T = TypeVar("T", bound=Piece)
 
 
 class GraphDefinitionError(Exception):
@@ -40,7 +40,7 @@ class CyclicDependencyError(GraphDefinitionError):
         self.indices = indices
 
 
-class Composite(piece.Piece):
+class Composite(Piece):
     """This class allows abstracting multiple pieces into a single instance.
 
     The component pieces are merged such that:
@@ -54,7 +54,7 @@ class Composite(piece.Piece):
     and make the outputs of pieces run earlier available to pieces run later on.
     """
 
-    def __init__(self, components: Sequence[piece.Piece], *, name: Optional[str] = None):
+    def __init__(self, components: Sequence[Piece], *, name: Optional[str] = None):
         """Initializes the Composite.
 
         Args:
@@ -109,7 +109,7 @@ class Composite(piece.Piece):
         """Extract components that match a given type.
 
         Args:
-            component_type: Type of component to extract deriving from piece.Piece
+            component_type: Type of component to extract deriving from Piece
 
         Returns:
             A list of the components of this type.
@@ -127,7 +127,7 @@ class Composite(piece.Piece):
     def try_build_dependency_graph(
             cls,
             composite_name: str,
-            components: Sequence[piece.Piece],
+            components: Sequence[Piece],
         ):
         component_ios = [(c.inputs(), c.outputs()) for c in components]
         try:
@@ -144,7 +144,7 @@ class Composite(piece.Piece):
     def try_topological_sort(
             cls,
             composite_name: str,
-            components: Sequence[piece.Piece],
+            components: Sequence[Piece],
             dependency_graph: Dict[int, Set[int]],
         ) -> Tuple[int, ...]:
         try:

@@ -15,9 +15,16 @@ class Piece(nn.Module, abc.ABC):
     A piece should not be too complex by itself, but grows in complexity as
     it's put together with other pieces.
     """
-    def __init__(self):
-        """Initializes the underlying nn.Module."""
+    def __init__(self, *, name: Optional[str] = None):
+        """Initializes the underlying nn.Module.
+
+        Args:
+            name:
+                Optional name given to this piece.
+                If missing will use the class name.
+        """
         super().__init__()
+        self.name = name or self.__class__.__qualname__
 
     @abc.abstractmethod
     def inputs(self) -> Tuple[str, ...]:
@@ -47,78 +54,58 @@ class Piece(nn.Module, abc.ABC):
     #     assert not missing_inputs, f"Missing required inputs {missing_inputs}"
 
 
-class LossFunction(Piece):
-    """Loss function base class implemented as a piece."""
+class Loss(Piece):
 
-    def __init__(self, *, name: Optional[str] = None):
-        """Initializes the loss function.
+    @classmethod
+    def wrap(cls, loss_factory: Callable):
+        class WrappedLoss(Loss):
+            def __init__(self, *args, input_name: str, target_name: str, name: Optional[str] = None, **kwargs):
+                loss = loss_factory(*args, **kwargs)
+                super().__init__(name=name or loss.__class__.__qualname__)
+                self.loss = loss
+                self.input_name = input_name
+                self.target_name = target_name
 
-        Args:
-            name:
-                Optional name given to this loss.
-                If missing will use the class name.
-        """
-        super().__init__()
-        self.name = name or self.__class__.__qualname__
+            def inputs(self) -> Tuple[str, ...]:
+                return tuple([self.input_name, self.target_name])
 
+            def outputs(self) -> Tuple[str, ...]:
+                return tuple([self.name])
 
-class WrappedLoss(LossFunction):
-    """Class wrapping a callable loss function for ease of use."""
+            def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+                inpt = inputs[self.input_name]
+                trgt = inputs[self.target_name]
+                output = {
+                    self.name: self.loss(inpt, trgt)
+                }
+                return output
 
-    def __init__(
-            self,
-            loss_fn: Callable,
-            input_name: str,
-            target_name: str,
-            name: Optional[str] = None,
-            **kwargs,
-        ):
-        """Initializes the wrapped loss.
-
-        Args:
-            loss_fn: The function to compute the loss.
-                Must be callable like loss_fn(input, target, *args, **kwargs)
-            input_name: The name of the tensor to pass as input to the loss
-            target_name: The name of the tensor to pass as target to the loss
-            name: Optional name to be given to this function.
-                If missing will use the function's name
-            **kwargs: Extra keyword-arguments to pass to loss_fn.
-        """
-        super().__init__(name=name or loss_fn.__name__)
-        self.wrapped_loss_fn = loss_fn
-        self.input_name = input_name
-        self.target_name = target_name
-        self.kwargs = kwargs
-
-    def inputs(self) -> Tuple[str, ...]:
-        """Gets the name of the input which is just the output."""
-        return tuple([self.input_name])
-
-    def outputs(self) -> Tuple[str, ...]:
-        """Gets the names of the outputs produced by this piece."""
-        return tuple([self.name])
-
-    def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        """Computes the loss."""
-        inpt = inputs[self.input_name]
-        trgt = inputs[self.target_name]
-        loss_value = self.wrapped_loss_fn(inpt, trgt, **self.kwargs)
-        output = {
-            self.name: loss_value
-        }
-        return output
+        return WrappedLoss
 
 
 class Module(Piece):
-    """Module base class implemented as a piece."""
 
-    def __init__(self, *, name: Optional[str] = None):
-        """Initializes the module.
+    @classmethod
+    def wrap(cls, module_factory: Callable):
+        class WrappedModule(Module):
+            def __init__(self, *args, input_name: str, output_name: str, name: Optional[str] = None, **kwargs):
+                module = module_factory(*args, **kwargs)
+                super().__init__(name=name or module.__class__.__qualname__)
+                self.inner_module = module
+                self.input_name = input_name
+                self.output_name = output_name
 
-        Args:
-            name:
-                Optional name given to this module.
-                If missing will use the class name.
-        """
-        super().__init__()
-        self.name = name or self.__class__.__qualname__
+            def inputs(self) -> Tuple[str, ...]:
+                return tuple([self.input_name])
+
+            def outputs(self) -> Tuple[str, ...]:
+                return tuple([self.output_name])
+
+            def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
+                inpt = inputs[self.input_name]
+                output = {
+                    self.output_name: self.inner_module(inpt)
+                }
+                return output
+
+        return WrappedModule

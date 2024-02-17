@@ -1,53 +1,49 @@
-from typing import Dict, Tuple
-
 import pytest
 
-from jigsaw import piece
-from jigsaw import composite
+import torch
+from torch import nn
+
+from jigsaw import (
+    Composite,
+    Module,
+    CyclicDependencyError,
+    OutputRedefinitionError,
+)
 
 
-class DummyModule(piece.Module):
-    def __init__(self, inputs: Tuple[str], outputs: Tuple[str]):
-        super().__init__()
-        self._inputs = inputs
-        self._outputs = outputs
+def linear_factory(in_features, out_features, **kwargs) -> nn.Module:
+    return nn.Linear(in_features=in_features, out_features=out_features, **kwargs)
 
-    def inputs(self) -> Tuple[str]:
-        return self._inputs
 
-    def outputs(self) -> Tuple[str]:
-        return self._outputs
-
-    def forward(self, inputs: Dict[str, "torch.Tensor"]) -> Dict[str, "torch.Tensor"]:
-        return {}
+LinearModule = Module.wrap(linear_factory)
 
 
 def test_composite_init():
-    preprocessor_module = DummyModule(
-        inputs=tuple(["input", "extra_input"]),
-        outputs=tuple(["preprocessed"]),
-    )
-    main_module = DummyModule(
-        inputs=tuple(["preprocessed"]),
-        outputs=tuple(["output"]),
-    )
-    auxiliary_module = DummyModule(
-        inputs=tuple(["preprocessed"]),
-        outputs=tuple(["aux"]),
-    )
-    pieces = [preprocessor_module, main_module, auxiliary_module]
-    composite.Composite(components=pieces)
+    preprocessor = LinearModule(16, 16, input_name="input", output_name="preprocessed")
+    main = LinearModule(16, 16, input_name="preprocessed", output_name="output")
+    aux = LinearModule(16, 16, input_name="preprocessed", output_name="aux")
+    _ = Composite(components=[preprocessor, main, aux])
 
 
 def test_composite_fails_with_repeated_outputs():
-    main_module = DummyModule(
-        inputs=tuple(["input"]),
-        outputs=tuple(["output"]),
-    )
-    alternative_module = DummyModule(
-        inputs=tuple(["input"]),
-        outputs=tuple(["output"]),
-    )
-    pieces = [main_module, alternative_module]
-    with pytest.raises(composite.OutputRedefinitionError):
-        composite.Composite(components=pieces)
+    main = LinearModule(16, 16, input_name="input", output_name="output")
+    alt = LinearModule(16, 16, input_name="input", output_name="output")
+    with pytest.raises(OutputRedefinitionError):
+        _ = Composite(components=[main, alt])
+
+
+def test_composite_fails_with_cyclic_dependencies():
+    ab = LinearModule(16, 16, input_name="a", output_name="b")
+    ba = LinearModule(16, 16, input_name="b", output_name="a")
+    with pytest.raises(CyclicDependencyError):
+        _ = Composite(components=[ab, ba])
+
+
+def test_composite_run_sorted():
+    ab = LinearModule(in_features=16, out_features=8, input_name="a", output_name="b")
+    bc = LinearModule(in_features=8, out_features=4, input_name="b", output_name="c")
+    cd = LinearModule(in_features=4, out_features=2, input_name="c", output_name="d")
+    composite = Composite(components=[cd, bc, ab])
+    inputs = {"a": torch.rand(32, 16)}
+    outputs = composite.forward(inputs)
+    outputs.keys() == {"a", "b", "c", "d"}
