@@ -60,3 +60,13 @@ def test_topological_sort_long_cycle():
     }
     with pytest.raises(computation_graph.CyclicDependencyError):
         computation_graph.topological_sort(dependency_graph)
+
+
+def test_topological_sort_with_self_loop():
+    dependency_graph = {
+        0: set(),
+        1: {0, 1},
+    }
+    result = computation_graph.topological_sort(dependency_graph)
+    expected = (0, 1)
+    assert result == expected

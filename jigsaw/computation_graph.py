@@ -63,6 +63,9 @@ def build_dependency_graph(inputs_and_outputs: Sequence[IOSpec]) -> Dict[int, Se
 def topological_sort(dependency_graph: Dict[int, Set[int]]) -> Tuple[int, ...]:
     """Compute the topological sorting of the given dependency graph.
 
+    Note that any self-dependencies will be ignored as the node will be relied on
+    to produce the output before it needs it.
+
     Args:
         dependency_graph:
             A dict pointing from indices to the indices this node depends on.
@@ -77,7 +80,7 @@ def topological_sort(dependency_graph: Dict[int, Set[int]]) -> Tuple[int, ...]:
     while len(sorting) < len(dependency_graph):
         initial_length = len(sorting)
         for i, deps in dependency_graph.items():
-            if not resolved[i] and len(deps.difference(sorting)) == 0:
+            if not resolved[i] and len(deps.difference(sorting + [i])) == 0:
                 sorting.append(i)
                 resolved[i] = True
         any_added = len(sorting) > initial_length
